@@ -70,7 +70,7 @@ public class ClienteRestController {
     }
     try{
       clienteNew = clienteService.save(cliente);
-      response.put("mensaje", "El client ha sido creado con exito");
+      response.put("mensaje", "El cliente ha sido creado con exito");
     }catch (DataAccessException e){
       response.put("mensaje","Error al realizar el insert en la BD");
       response.put("Error", e.getMessage().concat(": ").concat(e.getMostSpecificCause().getMessage()));
