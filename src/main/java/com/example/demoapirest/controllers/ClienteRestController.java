@@ -11,8 +11,14 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import javax.validation.Valid;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -114,6 +120,15 @@ public class ClienteRestController {
   public ResponseEntity<?> delete(@PathVariable Long id) {
     Map<String, Object> response = new HashMap<>();
     try {
+      Cliente cliente = clienteService.findById(id);
+      String nombreFotoAnterior = cliente.getFoto();
+      if(nombreFotoAnterior !=null && nombreFotoAnterior.length() >0){
+        Path rutaFotoAnterior = Paths.get("uploads").resolve(nombreFotoAnterior).toAbsolutePath();
+        File archivoFotoAnterior = rutaFotoAnterior.toFile();
+        if(archivoFotoAnterior.exists() && archivoFotoAnterior.canRead()){
+          archivoFotoAnterior.delete();
+        }
+      }
       clienteService.delete(id);
     } catch (DataAccessException e) {
       response.put("mensaje", "Error al eliminar el cliente de la base de datos");
@@ -122,5 +137,36 @@ public class ClienteRestController {
     }
     response.put("mensaje", "El cliente eliminado con éxito!");
     return new ResponseEntity<Map<String, Object>>(response, HttpStatus.OK);
+  }
+
+  @PostMapping("/clientes/upload")
+  public ResponseEntity<?> upload(@RequestParam("archivo") MultipartFile archivo, @RequestParam("id") Long id){
+    Map<String, Object> response = new HashMap<>();
+    Cliente cliente = clienteService.findById(id);
+    if(!archivo.isEmpty()){
+      String nombreArchivo = archivo.getOriginalFilename();
+      Path rutaArchivo = Paths.get("uploads").resolve(nombreArchivo).toAbsolutePath();
+      try{
+        Files.copy(archivo.getInputStream(), rutaArchivo);
+      }catch (IOException e){
+        response.put("mensaje", "Errpr al subir la imagen" +nombreArchivo);
+        response.put("error", e.getMessage().concat(": ").concat(e.getCause().getMessage()));
+        return new ResponseEntity<Map<String, Object>>(response, HttpStatus.INTERNAL_SERVER_ERROR);
+      }
+      String nombreFotoAnterior = cliente.getFoto();
+      if(nombreFotoAnterior !=null && nombreFotoAnterior.length() >0){
+        Path rutaFotoAnterior = Paths.get("uploads").resolve(nombreFotoAnterior).toAbsolutePath();
+        File archivoFotoAnterior = rutaFotoAnterior.toFile();
+        if(archivoFotoAnterior.exists() && archivoFotoAnterior.canRead()){
+          archivoFotoAnterior.delete();
+        }
+      }
+      cliente.setFoto(nombreArchivo);
+      clienteService.save(cliente);
+
+      response.put("cliente", cliente);
+      response.put("mensaje", "Has subido correctamente la imagen: "+nombreArchivo);
+    }
+    return new ResponseEntity<Map<String, Object>>(response, HttpStatus.CREATED);
   }
 }
